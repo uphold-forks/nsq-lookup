@@ -47,7 +47,7 @@ function lookup(addrs, opts, fn) {
         .end(function(err, res) {
           if (err) return done(err);
           if (res.error) return done(res.error);
-          var data = res.body && res.body.data || {};
+          var data = res.body?.data ?? res.body ?? {};
           var producers = data.producers || [];
           done(null, producers);
         })
