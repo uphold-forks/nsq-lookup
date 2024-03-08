@@ -1,24 +1,20 @@
-
 /**
  * Module dependencies.
  */
 
-var lookup = require('./');
+const lookup = require('./');
 
-var addrs = [
-	'http://0.0.0.0:4161',
-	'http://0.0.0.0:4162',
-	'http://0.0.0.0:4161',
-];
+const addresses = ['http://0.0.0.0:4161', 'http://0.0.0.0:4162', 'http://0.0.0.0:4161'];
+const options = { timeout: 10000 };
 
-var opts = {
-	timeout: 10000
-};
-
-lookup(addrs, opts, function(errors, nodes){
-  if (errors) {
-  	console.error(errors)
-  } else {
-  	console.log(nodes);
-  }
+// Callback style.
+lookup(addresses, options, function (errors, nodes) {
+  console.error(errors, nodes);
 });
+
+// Promise style.
+(async () => {
+  const { errors, nodes } = await lookup(addresses, options);
+
+  console.error(errors, nodes);
+})();

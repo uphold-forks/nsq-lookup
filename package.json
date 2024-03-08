@@ -1,21 +1,30 @@
 {
-  "name": "nsq-lookup",
+  "name": "@uphold/nsq-lookup",
   "version": "3.0.0",
-  "repository": "segmentio/nsq-lookup",
+  "repository": "uphold-forks/nsq-lookup",
   "description": "lookup nsqd instances via nsqlookupd",
   "keywords": [
     "nsq",
     "nsqlookup",
     "nsqlookupd"
   ],
+  "scripts": {
+    "lint": "eslint index.js test",
+    "release": "release-it",
+    "start-nsq": "docker compose up -d nsqlookupd nsqd",
+    "start-nsq-old": "docker compose up -d nsqlookupd-old nsqd-old",
+    "stop-nsq": "docker-compose down",
+    "test": "node --test"
+  },
   "dependencies": {
-    "batch": "^0.6.1",
     "debug": "^4.3.4",
     "superagent": "^8.0.9"
   },
   "devDependencies": {
-    "mocha": "*",
-    "should": "*"
+    "@uphold/github-changelog-generator": "^3.4.0",
+    "eslint": "^8.57.0",
+    "eslint-config-uphold": "^5.0.1",
+    "release-it": "^17.1.1"
   },
   "license": "MIT"
 }

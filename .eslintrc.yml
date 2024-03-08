@@ -1,0 +1,5 @@
+extends:
+  - uphold
+
+rules:
+  promise/prefer-await-to-then: 0

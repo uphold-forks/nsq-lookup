@@ -1,39 +1,39 @@
 
-# nsq-lookup
+# @uphold/nsq-lookup
 
-  Lookup nsqd nodes via N nsqlookupd addresses.
+Lookup nsqd nodes via N nsqlookupd addresses.
 
 ## Installation
 
 ```
-$ npm install nsq-lookup
+$ npm install @uphold/nsq-lookup
 ```
 
 ## Example
 
 ```js
-var lookup = require('nsq-lookup');
+const lookup = require('@uphold/nsq-lookup');
 
-var addrs = [
+const addresses = [
 	'http://0.0.0.0:4161',
 	'http://0.0.0.0:4162',
 	'http://0.0.0.0:4161',
 ];
 
-var opts = {
+const options = {
   timeout: 10000,
-  topic: 'foobar' // optionally filter nodes based on topic
+  topic: 'foobar'
 };
 
-lookup(addrs, opts, function(errors, nodes){
+lookup(addresses, options, function(errors, nodes) {
   if (errors) {
-  	console.error(errors)
-  } else {
-  	console.log(nodes);
+  	console.error(errors);
   }
+
+  console.log(nodes);
 });
 ```
 
 # License
 
-  MIT
+MIT
