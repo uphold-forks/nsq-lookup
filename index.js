@@ -1,3 +1,4 @@
+'use strict';
 
 /**
  * Module dependencies.
@@ -5,90 +6,97 @@
 
 const debug = require('debug')('nsq-lookup');
 const request = require('superagent');
-const Batch = require('batch');
 
 /**
- * Lookup using nsqlookupd `addrs`.
+ * Parse an array of responses.
  *
- * @param {Array} addrs
- * @param {Function|{}} opts
- * @param {(Function|undefined)} fn
- * @access public
- */
-
-function lookup(addrs, opts, fn) {
-  var batch = new Batch;
-  batch.throws(false);
-  batch.concurrency(addrs.length);
-
-  if (typeof opts === 'function') {
-    fn = opts;
-    opts = {};
-  }
-
-  var timeout = opts.timeout || 20000;
-  var retries = opts.retries || 2;
-
-  if (!opts.topic) {
-    return fn(new Error('invalid or missing topic'), null);
-  }
-
-  addrs.forEach(function(addr) {
-    debug('lookup %s for topic %s', addr, opts.topic);
-    batch.push(function(done) {
-      request
-        .get(addr + '/lookup?topic=' + opts.topic)
-        .timeout(timeout)
-        .retry(retries, (err, res) => {
-          if (res?.status < 500) {
-            return false;
-          }
-        })
-        .end(function(err, res) {
-          if (err) return done(err);
-          if (res.error) return done(res.error);
-          var data = res.body?.data ?? res.body ?? {};
-          var producers = data.producers || [];
-          done(null, producers);
-        })
-    });
-  });
-
-  batch.end(function(errors, results) {
-    errors = errors?.filter(Boolean) ?? [];
-    results = results?.filter(Boolean) ?? [];
-
-    results = dedupe(results);
-
-    debug('errors=%j results=%j', errors, results);
-    fn(errors.length ? errors : null, results);
-  });
-}
-
-/**
- * Dedupe `results`.
- *
- * @param {Array} results
+ * @param {Array} responses
  * @return {Array}
  * @access private
  */
 
-function dedupe(results) {
-  results = results || [];
+function parseResponses(responses = []) {
+  const nodeSet = new Set();
+  const errors = [];
+  const dedupedNodes = [];
 
-  var ret = [];
-  var set = {};
+  for (const [error, nodes = []] of responses) {
+    if (error) {
+      errors.push(error);
+    }
 
-  results.forEach(function(nodes) {
-    nodes.forEach(function(node) {
-      var addr = node.broadcast_address + ':' + node.tcp_port;
-      if (set[addr]) return debug('already registered');
-      set[addr] = true;
-      ret.push(node);
-    });
+    for (const node of nodes) {
+      const addr = `${node.broadcast_address}:${node.tcp_port}`;
+
+      if (nodeSet.has(addr)) {
+        debug('already registered');
+
+        continue;
+      }
+
+      nodeSet.add(addr);
+      dedupedNodes.push(node);
+    }
+  }
+
+  return [errors, dedupedNodes];
+}
+
+/**
+ * Lookup topic using an array of nsqlookupd addresses.
+ *
+ * @param {String[]} addresses
+ * @param {Object} options
+ * @param {Function|undefined} callback
+ * @access public
+ */
+
+function lookup(addresses = [], options = {}, callback) {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+
+  if (!options.topic) {
+    const errors = [new Error('Missing required parameter `options.topic`')];
+
+    return callback ? callback(errors, []) : { errors, nodes: [] };
+  }
+
+  options.timeout ||= 20000;
+  options.retries ||= 2;
+
+  const promise = Promise.all(
+    addresses.map(async address => {
+      debug('lookup %s for topic %s', address, options.topic);
+
+      try {
+        const response = await request
+          .get(`${address}/lookup`)
+          .query({ topic: options.topic })
+          .timeout(options.timeout)
+          .retry(options.retries, (err, res) => res?.status >= 500);
+
+        return [null, response.body?.data?.producers ?? response.body.producers ?? []];
+      } catch (error) {
+        return [error];
+      }
+    })
+  ).then(responses => {
+    const [errors, nodes] = parseResponses(responses);
+
+    debug('errors=%j results=%j', errors, nodes);
+
+    if (!callback) {
+      return { errors, nodes };
+    }
+
+    callback(errors.length ? errors : null, nodes);
   });
 
-  return ret;
+  if (!callback) {
+    return promise;
+  }
 }
 
 /**
